@@ -36,25 +36,8 @@ public partial class CartesianChart : UserControl
     public CartesianChart()
     {
         InitializeComponent();
-        if (_fadeOutTooltip == null)
-        {
-            _fadeOutTooltip = new DoubleAnimation
-            {
-                From = PART_Tooltip.Opacity,
-                To = 0.0,
-                Duration = TimeSpan.FromSeconds(0.2),
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-            };
-            // We need to set visibility AFTER fade-out completes
-            _fadeOutTooltip.Completed += (_, _) =>
-            {
-                if (PART_Tooltip.Visibility == Visibility.Visible)
-                    PART_Tooltip.Visibility = Visibility.Collapsed;
-
-                _animating = false;
-            };
-        }
-        #region [Configure events]
+        ConfigureFadeOutAnimation();
+        #region [UserControl Events]
         Loaded += (_, _) => Redraw();
         SizeChanged += (_, _) => Redraw();
         if (_constantTooltip)
@@ -82,8 +65,7 @@ public partial class CartesianChart : UserControl
             _minX = points.Min(p => p.Time.Ticks);
             _maxX = points.Max(p => p.Time.Ticks);
             _maxY = points.Max(p => p.Value);
-            if (_maxY <= 0)
-                _maxY = 1; // avoid divide-by-zero
+            if (_maxY <= 0) { _maxY = 1; } // prevent divide-by-zero
         }
 
         DrawGridlines(points);
@@ -125,8 +107,7 @@ public partial class CartesianChart : UserControl
             var maxX = series.Points.Max(p => p.Time.Ticks);
             var minY = 0.0;
             var maxY = series.Points.Max(p => p.Value);
-            if (maxY <= 0) // Avoid divide-by-zero
-                maxY = 1;
+            if (maxY <= 0) { maxY = 1; } // prevent divide-by-zero
 
             double PlotX(DateTime t) => 40 + (ActualWidth - 50) * ((t.Ticks - minX) / (double)(maxX - minX));
             double PlotY(double v) => (ActualHeight - 30) - (ActualHeight - 40) * (v / maxY);
@@ -276,7 +257,7 @@ public partial class CartesianChart : UserControl
             
             // TODO: Add date/time/uom formatting to ChartSeries model
             //PART_TooltipText.Text = $"{closest.Time:t}\n{closest.Value:0.00} in";
-            PART_TooltipText.Text = $"{closest.Time.ToString("MM/dd h:mm tt")}\n{closest.Value:0.00} inches";
+            PART_TooltipText.Text = $"{closest.Time.ToString("MM/dd h:mm tt")}\n{closest.Value:0.00} {closest.Uom}";
             
             if (PART_Tooltip.Visibility != Visibility.Visible)
             {
@@ -324,7 +305,7 @@ public partial class CartesianChart : UserControl
 
         PART_Tooltip.Visibility = Visibility.Hidden;
 
-        PART_TooltipText.Text = $"{closest.Time:t}\n{closest.Value:0.00} in";
+        PART_TooltipText.Text = $"{closest.Time:t}\n{closest.Value:0.00} {closest.Uom}";
 
         #region [Centering Tooltip]
         //double x = Math.Min(pos.X + 10, ActualWidth - PART_Tooltip.ActualWidth - 10);
@@ -365,12 +346,12 @@ public partial class CartesianChart : UserControl
     double PlotY_Scoped(double v)
     {
         double maxY = _maxY;
-        if (maxY <= 0) { maxY = 1; } // Avoid divide-by-zero
+        if (maxY <= 0) { maxY = 1; } // prevent divide-by-zero
         return (ActualHeight - 30) - (ActualHeight - 40) * (v / maxY);
     }
     #endregion
 
-    #region [Animation helpers]
+    #region [Animation Helpers]
     void StartDotPulse()
     {
         var anim = new DoubleAnimation
@@ -418,13 +399,35 @@ public partial class CartesianChart : UserControl
         _animating = true;
         PART_Tooltip.BeginAnimation(UIElement.OpacityProperty, _fadeOutTooltip);
     }
+
+    void ConfigureFadeOutAnimation()
+    {
+        if (_fadeOutTooltip == null)
+        {
+            _fadeOutTooltip = new DoubleAnimation
+            {
+                From = PART_Tooltip.Opacity,
+                To = 0.0,
+                Duration = TimeSpan.FromSeconds(0.2),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            // We need to set visibility AFTER fade-out completes
+            _fadeOutTooltip.Completed += (_, _) =>
+            {
+                if (PART_Tooltip.Visibility == Visibility.Visible)
+                    PART_Tooltip.Visibility = Visibility.Collapsed;
+
+                _animating = false;
+            };
+        }
+    }
     #endregion
 }
 
 /// <summary>
 /// We need a <see cref="VisualHost"/> class since WPF does not let us add <br/>
 /// a <see cref="System.Windows.Media.DrawingVisual"/> directly into a Canvas/Panel/Grid. <br/>
-/// A <see cref="System.Windows.Media.DrawingVisual"/>  is a visual, not a <see cref="System.Windows.UIElement"/>, <br/>
+/// A <see cref="System.Windows.Media.DrawingVisual"/> is a visual, not a <see cref="System.Windows.UIElement"/>, <br/>
 /// and Panels/Canvas/Grid only accept <see cref="System.Windows.UIElement"/> as <br/>
 /// children, so our <see cref="VisualHost"/> acts as a bridge.
 /// </summary>

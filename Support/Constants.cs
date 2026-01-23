@@ -11,8 +11,7 @@ public enum LogLevel { DEBUG = 0, INFO = 1, WARNING = 2, ERROR = 3, SUCCESS = 4 
 public class Constants
 {
     public static string MainButtonText = "Get Weather";
-    public static string ChartButtonTextShow = "Show Chart";
-    public static string ChartButtonTextHide = "Hide Chart";
+    public static string SecondaryButtonText = "Chart Precipitation";
     public static Uri AssetLogo = new Uri(@"assets/logo.png", UriKind.Relative);
     public static Uri AssetError = new Uri(@"assets/error.png", UriKind.Relative);
     public static Uri AssetWarning = new Uri(@"assets/warning.png", UriKind.Relative);

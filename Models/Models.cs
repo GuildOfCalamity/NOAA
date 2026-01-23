@@ -17,6 +17,7 @@ namespace NOAA
         public DateTime Time { get; set; }
         public string ForcastPrecip { get; set; }
         public string DetailPrecip { get; set; }
+        public string UnitOfMeasure { get; set; }
     }
 }
 

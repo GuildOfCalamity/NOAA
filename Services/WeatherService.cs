@@ -328,22 +328,22 @@ public class WeatherService : IDisposable
 
             var uom = GetUnitCode(forecast.Properties.QuantitativePrecipitation.Uom);
             Debug.WriteLine($"[INFO] QuantitativePrecipitation unit of measure is {uom}");
+
             double divFactor = 0;
             if (uom.Equals("mm", StringComparison.OrdinalIgnoreCase))
-            {
                 divFactor = 25.4; // divide the length value by 25.4 (1 millimeter = 0.0393701 inches, 1 inch = 25.4 millimeters)
-            }
+
             foreach (var item in forecast.Properties.QuantitativePrecipitation.Values)
             {
                 if (double.TryParse($"{item.Value}", out double value))
                 {
                     if (!divFactor.IsInvalidOrZero())
                     {
-                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N1} inches", UnitOfMeasure = "inches" });
+                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N2} inches", UnitOfMeasure = "inches" });
                     }
                     else
                     {
-                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N1} {uom}", UnitOfMeasure = $"{uom}" });
+                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N2} {uom}", UnitOfMeasure = $"{uom}" });
                     }
                 }
                 else
@@ -381,22 +381,22 @@ public class WeatherService : IDisposable
 
             var uom = GetUnitCode(forecast.Properties.QuantitativePrecipitation.Uom);
             Debug.WriteLine($"[INFO] QuantitativePrecipitation unit of measure is {uom}");
+
             double divFactor = 0;
             if (uom.Equals("mm", StringComparison.OrdinalIgnoreCase))
-            {
                 divFactor = 25.4; // divide the length value by 25.4 (1 millimeter = 0.0393701 inches, 1 inch = 25.4 millimeters)
-            }
+
             foreach (var item in forecast.Properties.QuantitativePrecipitation.Values)
             {
                 if (double.TryParse($"{item.Value}", out double value))
                 {
                     if (!divFactor.IsInvalidOrZero())
                     {
-                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N1} inches", UnitOfMeasure = "inches" });
+                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N2} inches", UnitOfMeasure = "inches" });
                     }
                     else
                     {
-                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N1} {uom}", UnitOfMeasure = $"{uom}" });
+                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N2} {uom}", UnitOfMeasure = $"{uom}" });
                     }
                 }
                 else
@@ -443,13 +443,67 @@ public class WeatherService : IDisposable
             {
                 if (double.TryParse($"{item.Value}", out double value))
                 {
+                    //Debug.WriteLine($"[VALUE] {item.Value} {uom}");
                     if (!divFactor.IsInvalidOrZero())
                     {
-                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N1} inches", UnitOfMeasure = "inches" });
+                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N2} inches", UnitOfMeasure = "inches" });
                     }
                     else
                     {
-                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N1} {uom}", UnitOfMeasure = $"{uom}" });
+                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N2} {uom}", UnitOfMeasure = $"{uom}" });
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"[WARNING] item.Value is not valid ");
+                }
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Extensions.WriteToLog($"{System.Reflection.MethodBase.GetCurrentMethod()?.Name}: {ex.Message}", LogLevel.ERROR);
+        }
+        return values;
+    }
+
+    /// <summary>
+    /// We can use the gridData url or just strip off the "/forecast" postfix.
+    /// </summary>
+    /// <param name="forecastUrl"></param>
+    /// <returns><see cref="List{T}"/> where T is <see cref="PrecipitationValue"/></returns>
+    public async Task<List<PrecipitationValue>> GetWeeklySnowfallAmountAsync(string officeID = "PHI", string gridPoint = "34,100")
+    {
+        List<PrecipitationValue> values = new List<PrecipitationValue>();
+
+        try
+        {
+            var url = $"https://api.weather.gov/gridpoints/{officeID}/{gridPoint}";
+            var json = await _http.GetStringAsync(url);
+
+            var forecast = JsonSerializer.Deserialize<GridpointResponse>(json, _options);
+            if (forecast == null)
+                return values;
+
+            var uom = GetUnitCode(forecast.Properties.SnowfallAmount.Uom);
+            Debug.WriteLine($"[INFO] QuantitativePrecipitation unit of measure is {uom}");
+            double divFactor = 0;
+            if (uom.Equals("mm", StringComparison.OrdinalIgnoreCase))
+            {
+                divFactor = 25.4; // divide the length value by 25.4 (1 millimeter = 0.0393701 inches, 1 inch = 25.4 millimeters)
+            }
+            foreach (var item in forecast.Properties.SnowfallAmount.Values)
+            {
+                if (double.TryParse($"{item.Value}", out double value))
+                {
+                    //Debug.WriteLine($"[VALUE] {item.Value} {uom}");
+                    if (!divFactor.IsInvalidOrZero())
+                    {
+                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N2} inches", UnitOfMeasure = "inches" });
+                    }
+                    else
+                    {
+                        values.Add(new PrecipitationValue { Time = $"{item.ValidTime}", Value = $"{value / divFactor:N2} {uom}", UnitOfMeasure = $"{uom}" });
                     }
                 }
                 else
@@ -529,6 +583,23 @@ public class WeatherService : IDisposable
     {
         return DateTime.Parse(validTime.Split('/')[0], null, System.Globalization.DateTimeStyles.RoundtripKind);
     }
+
+    public DateTime ParseNoaaValidTimeMidpoint(string validTime)
+    {
+        var parts = validTime.Split('/');
+        var start = DateTime.Parse(parts[0], null, System.Globalization.DateTimeStyles.RoundtripKind);
+        var duration = System.Xml.XmlConvert.ToTimeSpan(parts[1]);
+        return start + TimeSpan.FromTicks(duration.Ticks / 2);
+    }
+
+    public DateTime ParseNoaaValidTimeMidpointUsingTuple(string validTime)
+    {
+        var (start, duration, end) = ParseNoaaValidTime(validTime);
+
+        // midpoint = start + half the duration
+        return start + TimeSpan.FromTicks(duration.Ticks / 2);
+    }
+
 
     /// <summary>
     /// NOAA’s quirkiest formats: a start time followed by an ISO‑8601 duration.

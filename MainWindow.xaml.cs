@@ -115,7 +115,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             this.Title = $"NOAA Weather Forecast - v{App.GetCurrentAssemblyVersion()}";
             chart.Visibility = spProgress.Visibility = Visibility.Hidden;
             btnGet.Content = Constants.MainButtonText;
-            btnChart.Content = Constants.ChartButtonTextShow;
 
             #region [Load config]
             _latitude = ConfigManager.Get("Latitude", defaultValue: 40.539d);
@@ -194,10 +193,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     async void GetWeatherClick(object sender, RoutedEventArgs e)
     {
-        btnGet.Content = "";
+        btnGet.Content = "•••";
         btnGet.IsEnabled = false;
         spProgress.Visibility = Visibility.Visible;
-        Status = "🔔 Fetching data…";
+        Status = "🔔 Fetching forecast data…";
 
         // We use the lat/long to get the ZONE/GRID URL from https://api.weather.gov
         _apiUrls = await _weatherService.GetForecastUrlAsync(_latitude, _longitude);
@@ -218,8 +217,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         // Then we'll use that to fetch the detailed forecast for the week.
         await LoadForecast(_apiUrls);
         
-        //await LoadSnowfallAndPrecipitation(_apiUrls);
-
         // Re-enable UI elements and update status once complete (back on the UI thread)
         await Dispatcher.InvokeAsync(async () =>
         {
@@ -228,13 +225,64 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             spProgress.Visibility = Visibility.Hidden;
             btnGet.IsEnabled = true;
             btnGet.Content = Constants.MainButtonText;
+            if (chart.Visibility == Visibility.Visible)
+            {
+                chart.Visibility = Visibility.Hidden;
+                viewer.Visibility = Visibility.Visible;
+            }
         }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
+    async void GetSnowfallClick(object sender, RoutedEventArgs e)
+    {
+        btnSnowfall.Content = "•••";
+        btnSnowfall.IsEnabled = false;
+        spProgress.Visibility = Visibility.Visible;
+        Status = "🔔 Fetching precipitation data…";
+
+        // We use the lat/long to get the ZONE/GRID URL from https://api.weather.gov
+        _apiUrls = await _weatherService.GetForecastUrlAsync(_latitude, _longitude);
+
+        if (_apiUrls is null)
+        {
+            await Dispatcher.InvokeAsync(async () =>
+            {
+                msgBar.BarText = Status = $"🚨 Failed to get forecast URL, try again later.";
+                await Task.Delay(500); // prevent spamming
+                spProgress.Visibility = Visibility.Hidden;
+                btnSnowfall.IsEnabled = true;
+                btnSnowfall.Content = Constants.SecondaryButtonText;
+            }, System.Windows.Threading.DispatcherPriority.Background);
+            return;
+        }
+
+        // Then we'll use that to fetch the detailed precipitation for the chart.
+        await LoadSnowfallAndPrecipitation(_apiUrls);
+
+        // Re-enable UI elements and update status once complete (back on the UI thread)
+        await Dispatcher.InvokeAsync(async () =>
+        {
+            msgBar.BarText = $"🔔 Attempt completed ({DateTime.Now.ToLongTimeString()})";
+            await Task.Delay(500); // prevent spamming
+            spProgress.Visibility = Visibility.Hidden;
+            btnSnowfall.IsEnabled = true;
+            btnSnowfall.Content = Constants.SecondaryButtonText;
+            if (chart.Visibility == Visibility.Hidden)
+            {
+                ShowChart();
+            }
+            else
+            {
+                chart.Redraw();
+            }
+        }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+
     /// <summary>
-    /// <see cref="System.Windows.Controls.Button"/> event
+    /// <see cref="NOAA.Controls.CartesianChart"/> event
     /// </summary>
-    void ShowChartClick(object sender, RoutedEventArgs e)
+    void ShowChart()
     {
         if (PrecipSeries == null || PrecipSeries.Count == 0)
         {
@@ -242,7 +290,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
         chart.Visibility = chart.Visibility == Visibility.Visible ? Visibility.Hidden : Visibility.Visible;
-        btnChart.Content = chart.Visibility == Visibility.Visible ? Constants.ChartButtonTextHide : Constants.ChartButtonTextShow;
+        //btnChart.Content = chart.Visibility == Visibility.Visible ? Constants.ChartButtonTextHide : Constants.ChartButtonTextShow;
         if (chart.Visibility == Visibility.Visible) 
         {
             viewer.Visibility = Visibility.Hidden;
@@ -346,7 +394,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     for (int i = 0; i < forecast.Properties.Periods.Count; i++)
                     {
                         forecast.Properties.Periods[i].PrecipitationAmount = precipAmounts[i].Value;
-                        points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, double.Parse(precipAmounts[i].Value)));
+                        points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, double.Parse(precipAmounts[i].Value), precipAmounts[i].UnitOfMeasure));
                     }
                     PrecipSeries = new List<ChartSeries> { new ChartSeries { Points = points } };
                 }
@@ -358,7 +406,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         for (int i = 0; i < forecast.Properties.Periods.Count; i++)
                         {
                             forecast.Properties.Periods[i].PrecipitationAmount = merged[i].DetailPrecip;
-                            points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, double.Parse(merged[i].DetailPrecip)));
+                            points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, double.Parse(merged[i].DetailPrecip), merged[i].UnitOfMeasure));
                         }
                         PrecipSeries = new List<ChartSeries> { new ChartSeries { Points = points } };
                     }
@@ -378,7 +426,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     {
                         var parsed = _weatherService.ExtractAmount(forecast.Properties.Periods[i].DetailedForecast, uom);
                         forecast.Properties.Periods[i].PrecipitationAmount = string.IsNullOrEmpty(parsed) ? $"0 {uom}" : parsed;
-                        points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, _weatherService.ExtractAmountToDouble(forecast.Properties.Periods[i].DetailedForecast)));
+                        points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, _weatherService.ExtractAmountToDouble(forecast.Properties.Periods[i].DetailedForecast), uom));
                     }
                     PrecipSeries = new List<ChartSeries> { new ChartSeries { Points = points } };
                 }
@@ -389,7 +437,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     {
                         var parsed = _weatherService.ExtractAmount(forecast.Properties.Periods[i].DetailedForecast);
                         forecast.Properties.Periods[i].PrecipitationAmount = string.IsNullOrEmpty(parsed) ? $"0" : parsed;
-                        points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, _weatherService.ExtractAmountToDouble(forecast.Properties.Periods[i].DetailedForecast)));
+                        points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, _weatherService.ExtractAmountToDouble(forecast.Properties.Periods[i].DetailedForecast), uom));
                     }
                     PrecipSeries = new List<ChartSeries> { new ChartSeries { Points = points } };
                 }
@@ -419,6 +467,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     async Task LoadSnowfallAndPrecipitation(ApiUrls url)
     {
         List<PrecipitationValue> precipAmounts = new List<PrecipitationValue>();
+        List<PrecipitationValue> snowAmounts = new List<PrecipitationValue>();
         try
         {
             WeatherForecastResponse? forecast = null;
@@ -456,7 +505,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                2026-01-15T06:00:00+00:00/PT6H  0.1 inches 
             */
 
-            var snowAmounts = await _weatherService.GetWeeklySnowfallAmountAsync(url.GridData);
+            if (url is null)
+                snowAmounts = await _weatherService.GetWeeklySnowfallAmountAsync("PHI", "34,100");
+            else
+                snowAmounts = await _weatherService.GetWeeklySnowfallAmountAsync(url.GridData);
+
             Debug.WriteLine($"━━◖SnowfallAmounts◗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             foreach (var item in snowAmounts)
             {
@@ -466,18 +519,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             List<ChartPoint> points = new List<ChartPoint>();
             if (snowAmounts.Count == precipAmounts.Count)
             {
-                // Take the larger of the two and hydrate the chart
                 for (int i = 0; i < snowAmounts.Count; i++)
                 {
                     var snowAmount = Extensions.GetMaximumDouble(snowAmounts[i].Value);
                     var precipAmount = Extensions.GetMaximumDouble(precipAmounts[i].Value);
+                    // Take the larger of the two and hydrate the chart points
                     if (snowAmount > precipAmount)
                     {
-                        points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, snowAmount));
+                        var startTime = _weatherService.ParseNoaaStartTime(snowAmounts[i].Time);
+                        var midPoint  =_weatherService.ParseNoaaValidTimeMidpoint(snowAmounts[i].Time);
+                        var rangeTime = _weatherService.ParseNoaaValidTime(snowAmounts[i].Time);
+                        points.Add(new ChartPoint(midPoint, snowAmount, snowAmounts[i].UnitOfMeasure));
                     }
                     else
                     {
-                        points.Add(new ChartPoint(forecast.Properties.Periods[i].StartTime, precipAmount));
+                        var startTime = _weatherService.ParseNoaaStartTime(precipAmounts[i].Time);
+                        var midPoint = _weatherService.ParseNoaaValidTimeMidpoint(precipAmounts[i].Time);
+                        var rangeTime = _weatherService.ParseNoaaValidTime(precipAmounts[i].Time);
+                        points.Add(new ChartPoint(midPoint, precipAmount, precipAmounts[i].UnitOfMeasure));
                     }
                 }
                 PrecipSeries = new List<ChartSeries> { new ChartSeries { Points = points } };
@@ -539,7 +598,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 Time = b.StartTime,
                 ForcastPrecip = b.PrecipitationAmount,
-                DetailPrecip = string.IsNullOrEmpty(closest?.Value) ? "0" : closest.Value
+                DetailPrecip = string.IsNullOrEmpty(closest?.Value) ? "0" : closest.Value,
+                UnitOfMeasure = closest?.UnitOfMeasure ?? "inches"
             });
         }
         return result;
@@ -549,21 +609,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         List<ChartPoint> points = new List<ChartPoint>()
         {
-            new ChartPoint(DateTime.Now.AddHours(-6), 0.0),
-            new ChartPoint(DateTime.Now.AddHours(-3), 0.01),
-            new ChartPoint(DateTime.Now, 0.1),
-            new ChartPoint(DateTime.Now.AddHours(3), 0.26),
-            new ChartPoint(DateTime.Now.AddHours(6), 0.2),
-            new ChartPoint(DateTime.Now.AddHours(9), 0.1),
-            new ChartPoint(DateTime.Now.AddHours(12), 0.00),
-            new ChartPoint(DateTime.Now.AddHours(15), 0.00),
-            new ChartPoint(DateTime.Now.AddHours(18),0.25),
-            new ChartPoint(DateTime.Now.AddHours(21),0.48),
-            new ChartPoint(DateTime.Now.AddHours(24), 0.36),
-            new ChartPoint(DateTime.Now.AddHours(27), 0.31),
-            new ChartPoint(DateTime.Now.AddHours(30), 0.25),
-            new ChartPoint(DateTime.Now.AddHours(33), 0.19),
-            new ChartPoint(DateTime.Now.AddHours(35), 0.31),
+            new ChartPoint(DateTime.Now.AddHours(-6), 0.0, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(-3), 0.01, "inches"),
+            new ChartPoint(DateTime.Now, 0.1, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(3), 0.26, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(6), 0.2, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(9), 0.1, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(12), 0.00, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(15), 0.00, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(18),0.25, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(21),0.48, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(24), 0.36, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(27), 0.31, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(30), 0.25, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(33), 0.19, "inches"),
+            new ChartPoint(DateTime.Now.AddHours(35), 0.31, "inches"),
         };
         PrecipSeries = new List<ChartSeries> { new ChartSeries { Points = points } };
     }

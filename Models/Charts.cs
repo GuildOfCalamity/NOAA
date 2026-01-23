@@ -11,10 +11,12 @@ namespace NOAA
     {
         public DateTime Time { get; set; }
         public double Value { get; set; }
-        public ChartPoint(DateTime time, double value)
+        public string Uom { get; set; } // unit of measure
+        public ChartPoint(DateTime time, double value, string uom)
         {
             Time = time;
             Value = value;
+            Uom = uom;
         }
     }
 

@@ -83,9 +83,16 @@ public partial class App : Application
             !e.Exception.Message.Contains("Unable to read data from the transport connection") && 
             !e.Exception.Message.Contains($"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.XmlSerializers"))
         {
-            var str = $"[WARNING] First chance exception: {e.Exception.Message}";
-            e.Exception.Dump(logToFile: true);
-            Debug.WriteLine(str);
+            if (Debugger.IsAttached && e.Exception.Message.Contains("object disposed", StringComparison.OrdinalIgnoreCase))
+            {
+                // ignore net socket timeouts during debugging
+            }
+            else
+            {
+                var str = $"[WARNING] First chance exception: {e.Exception.Message}";
+                e.Exception.Dump(logToFile: true);
+                Debug.WriteLine(str);
+            }
         }
     }
 
