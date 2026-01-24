@@ -543,6 +543,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             2026-01-26T18:00:00+00:00/PT6H  0.20 inches 
             */
             List<ChartPoint> points = new List<ChartPoint>();
+            string target = "";
             if (snowAmounts.Count == precipAmounts.Count)
             {
                 for (int i = 0; i < snowAmounts.Count; i++)
@@ -552,6 +553,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     // Take the larger of the two and hydrate the chart points
                     if (snowAmount > precipAmount)
                     {
+                        target = "Snowfall";
                         if (expandHourlyPrecip)
                         {
                             //var expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
@@ -572,6 +574,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     }
                     else
                     {
+                        target = "Rainfall";
                         if (expandHourlyPrecip)
                         {
                             //var expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
@@ -594,7 +597,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 PrecipSeries = new List<ChartSeries> { new ChartSeries { Points = points } };
             }
 
-            Status = $"Snowfall data gathered {forecast.Properties.UpdateTime} ";
+            Status = $"{target} data gathered {forecast.Properties.UpdateTime} ";
         }
         catch (Exception ex)
         {
