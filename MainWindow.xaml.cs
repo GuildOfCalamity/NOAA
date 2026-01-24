@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -21,6 +22,7 @@ namespace NOAA;
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
     #region [Properties]
+    bool _expandHourlyPrecip = false;
     double _latitude = 0;
     double _longitude = 0;
     double _windowLeft = 0;
@@ -117,6 +119,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             btnGet.Content = Constants.MainButtonText;
 
             #region [Load config]
+            _expandHourlyPrecip = ConfigManager.Get("ExpandHourlyPrecipitation", defaultValue: false);
             _latitude = ConfigManager.Get("Latitude", defaultValue: 40.539d);
             _longitude = ConfigManager.Get("Longitude", defaultValue: -75.496d);
             _windowTop = ConfigManager.Get("WindowTop", defaultValue: 200d);
@@ -184,6 +187,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else { ConfigManager.Set("WindowHeight", value: 800); } // restore default
         ConfigManager.Set("WindBrushColor", _windBrushColor);
         ConfigManager.Set("WindBrushOpacity", _windBrushOpacity);
+        ConfigManager.Set("ExpandHourlyPrecipitation", _expandHourlyPrecip);
         _weatherService?.Dispose();
         _cts?.Cancel(); // Signal any loops/timers that it's time to shut it down.
     }
@@ -515,7 +519,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 Debug.WriteLine($"[SNOW] {item.Time}  {item.Value} ");
             }
-
+            /*
+            2026-01-25T06:00:00+00:00/PT6H  1.30 inches 
+            2026-01-25T12:00:00+00:00/PT6H  5.40 inches 
+            2026-01-25T18:00:00+00:00/PT6H  4.30 inches 
+            2026-01-26T00:00:00+00:00/PT6H  1.30 inches 
+            2026-01-26T06:00:00+00:00/PT6H  0.60 inches 
+            2026-01-26T12:00:00+00:00/PT6H  0.20 inches 
+            2026-01-26T18:00:00+00:00/PT6H  0.20 inches 
+            */
             List<ChartPoint> points = new List<ChartPoint>();
             if (snowAmounts.Count == precipAmounts.Count)
             {
@@ -526,17 +538,43 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     // Take the larger of the two and hydrate the chart points
                     if (snowAmount > precipAmount)
                     {
-                        var startTime = _weatherService.ParseNoaaStartTime(snowAmounts[i].Time);
-                        var midPoint  =_weatherService.ParseNoaaValidTimeMidpoint(snowAmounts[i].Time);
-                        var rangeTime = _weatherService.ParseNoaaValidTime(snowAmounts[i].Time);
-                        points.Add(new ChartPoint(midPoint, snowAmount, snowAmounts[i].UnitOfMeasure));
+                        if (_expandHourlyPrecip)
+                        {
+                            //var expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
+                            //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(snowAmounts[i].Time, snowAmount);
+                            var expanded = _weatherService.ExpandNoaaPrecipHourlyFlat(snowAmounts[i].Time, snowAmount);
+                            foreach (var item in expanded)
+                            {
+                                points.Add(new ChartPoint(item.Time, item.Value, snowAmounts[i].UnitOfMeasure));
+                            }
+                        }
+                        else
+                        {
+                            var startTime = _weatherService.ParseNoaaStartTime(snowAmounts[i].Time);
+                            var midPoint = _weatherService.ParseNoaaValidTimeMidpoint(snowAmounts[i].Time);
+                            var rangeTime = _weatherService.ParseNoaaValidTime(snowAmounts[i].Time);
+                            points.Add(new ChartPoint(midPoint, snowAmount, snowAmounts[i].UnitOfMeasure));
+                        }
                     }
                     else
                     {
-                        var startTime = _weatherService.ParseNoaaStartTime(precipAmounts[i].Time);
-                        var midPoint = _weatherService.ParseNoaaValidTimeMidpoint(precipAmounts[i].Time);
-                        var rangeTime = _weatherService.ParseNoaaValidTime(precipAmounts[i].Time);
-                        points.Add(new ChartPoint(midPoint, precipAmount, precipAmounts[i].UnitOfMeasure));
+                        if (_expandHourlyPrecip)
+                        {
+                            //var expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
+                            //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(precipAmounts[i].Time, precipAmount);
+                            var expanded = _weatherService.ExpandNoaaPrecipHourlyFlat(precipAmounts[i].Time, precipAmount);
+                            foreach (var item in expanded)
+                            {
+                                points.Add(new ChartPoint(item.Time, item.Value, precipAmounts[i].UnitOfMeasure));
+                            }
+                        }
+                        else
+                        {
+                            var startTime = _weatherService.ParseNoaaStartTime(precipAmounts[i].Time);
+                            var midPoint = _weatherService.ParseNoaaValidTimeMidpoint(precipAmounts[i].Time);
+                            var rangeTime = _weatherService.ParseNoaaValidTime(precipAmounts[i].Time);
+                            points.Add(new ChartPoint(midPoint, precipAmount, precipAmounts[i].UnitOfMeasure));
+                        }
                     }
                 }
                 PrecipSeries = new List<ChartSeries> { new ChartSeries { Points = points } };

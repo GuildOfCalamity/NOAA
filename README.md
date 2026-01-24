@@ -19,5 +19,7 @@
 
 ![CartesianChart](./Assets/Screenshot2.png)
 
-![Settings](./Assets/Screenshot3.png)
+![ExpandHourly](./Assets/Screenshot3.png)
+
+![Settings](./Assets/Screenshot4.png)
 
