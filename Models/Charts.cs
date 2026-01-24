@@ -31,5 +31,9 @@ namespace NOAA
         public Brush GridPen { get; set; } = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
         public double GridThickness { get; set; } = 1.25;
         #endregion
+
+        #region [Static points]
+        public bool ShowPoints { get; set; } = true;
+        #endregion
     }
 }

@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Shapes;
 
 namespace NOAA.Controls;
 
@@ -71,6 +72,18 @@ public partial class CartesianChart : UserControl
         DrawGridlines(points);
         DrawAxes();
         DrawSeries();
+        if (Series[0].ShowPoints)
+        {
+            DrawAllDataPointDots();
+        }
+
+        #region [WPF lacks a built‑in BringToFront() method, so do it the canonical way]
+        if (Series[0].ShowPoints)
+        {
+            // Add the static points layer
+            PART_Canvas.Children.Remove(PART_PointLayer);
+            PART_Canvas.Children.Add(PART_PointLayer);
+        }
 
         // Ensure dot is on top (z-order fix)
         PART_Canvas.Children.Remove(PART_HighlightDot);
@@ -79,6 +92,7 @@ public partial class CartesianChart : UserControl
         // Ensure tooltip is on top (z-order fix)
         PART_Canvas.Children.Remove(PART_Tooltip);
         PART_Canvas.Children.Add(PART_Tooltip);
+        #endregion
     }
 
     void DrawAxes()
@@ -203,6 +217,37 @@ public partial class CartesianChart : UserControl
 
         dc.Close();
         PART_Canvas.Children.Add(new VisualHost(g));
+    }
+
+    void DrawAllDataPointDots()
+    {
+        PART_PointLayer.Children.Clear();
+
+        if (Series == null || Series.Count == 0)
+            return;
+
+        var series = Series[0];
+
+        foreach (var p in series.Points)
+        {
+            double x = PlotX_Scoped(p.Time);
+            double y = PlotY_Scoped(p.Value);
+
+            var dot = new Ellipse
+            {
+                Width = 9,
+                Height = 9,
+                Fill = Brushes.DeepSkyBlue,
+                Stroke = Brushes.White,
+                StrokeThickness = 1,
+                IsHitTestVisible = false // important so mouse hover still works
+            };
+
+            Canvas.SetLeft(dot, x - dot.Width / 2);
+            Canvas.SetTop(dot, y - dot.Height / 2);
+
+            PART_PointLayer.Children.Add(dot);
+        }
     }
     #endregion
 

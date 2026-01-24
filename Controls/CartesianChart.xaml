@@ -8,6 +8,9 @@
              d:DesignHeight="250" d:DesignWidth="450">
     <Grid>
         <Canvas x:Name="PART_Canvas" Background="Transparent" ClipToBounds="False">
+
+            <Canvas x:Name="PART_PointLayer"/>
+
             <!-- Highlight -->
             <Ellipse x:Name="PART_HighlightDot"
              Width="14"
