@@ -17,9 +17,15 @@
 
 ![Screenshot](./Assets/Screenshot.png)
 
+> `ExpandHourlyPrecipitation = False`
+
 ![CartesianChart](./Assets/Screenshot2.png)
 
+> `ExpandHourlyPrecipitation = True`
+
 ![ExpandHourly](./Assets/Screenshot3.png)
+
+> `Settings.xml`
 
 ![Settings](./Assets/Screenshot4.png)
 
