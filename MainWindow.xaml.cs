@@ -553,7 +553,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     // Take the larger of the two and hydrate the chart points
                     if (snowAmount > precipAmount)
                     {
-                        target = "Snowfall";
+                        if (string.IsNullOrEmpty(target))
+                            target = "Snowfall";
                         if (expandHourlyPrecip)
                         {
                             //var expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
@@ -574,7 +575,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     }
                     else
                     {
-                        target = "Rainfall";
+                        if (string.IsNullOrEmpty(target))
+                            target = "Rainfall";
                         if (expandHourlyPrecip)
                         {
                             //var expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
