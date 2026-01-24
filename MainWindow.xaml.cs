@@ -22,7 +22,6 @@ namespace NOAA;
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
     #region [Properties]
-    bool _expandHourlyPrecip = false;
     double _latitude = 0;
     double _longitude = 0;
     double _windowLeft = 0;
@@ -84,6 +83,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    bool expandHourlyPrecip = false;
+    public bool ExpandHourlyPrecip
+    {
+        get => expandHourlyPrecip;
+        set
+        {
+            if (expandHourlyPrecip != value)
+            {
+                expandHourlyPrecip = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     List<ChartSeries> precipSeries = new List<ChartSeries>();
     public List<ChartSeries> PrecipSeries
     {
@@ -119,7 +132,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             btnGet.Content = Constants.MainButtonText;
 
             #region [Load config]
-            _expandHourlyPrecip = ConfigManager.Get("ExpandHourlyPrecipitation", defaultValue: false);
+            ExpandHourlyPrecip = ConfigManager.Get("ExpandHourlyPrecipitation", defaultValue: false);
             _latitude = ConfigManager.Get("Latitude", defaultValue: 40.539d);
             _longitude = ConfigManager.Get("Longitude", defaultValue: -75.496d);
             _windowTop = ConfigManager.Get("WindowTop", defaultValue: 200d);
@@ -144,7 +157,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
             else
             {
-                Status = $"Latitude is {_latitude}, longitude is {_longitude}. This can be adjusted in \"Settings.xml\"";
+                Status = $"Latitude is {_latitude}, longitude is {_longitude}";
+                Status2 = $"This can be adjusted in \"Settings.xml\"";
             }
 
             #region [Set the wind speed background effect]
@@ -187,7 +201,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else { ConfigManager.Set("WindowHeight", value: 800); } // restore default
         ConfigManager.Set("WindBrushColor", _windBrushColor);
         ConfigManager.Set("WindBrushOpacity", _windBrushOpacity);
-        ConfigManager.Set("ExpandHourlyPrecipitation", _expandHourlyPrecip);
+        ConfigManager.Set("ExpandHourlyPrecipitation", expandHourlyPrecip);
         _weatherService?.Dispose();
         _cts?.Cancel(); // Signal any loops/timers that it's time to shut it down.
     }
@@ -538,7 +552,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     // Take the larger of the two and hydrate the chart points
                     if (snowAmount > precipAmount)
                     {
-                        if (_expandHourlyPrecip)
+                        if (expandHourlyPrecip)
                         {
                             //var expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
                             //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(snowAmounts[i].Time, snowAmount);
@@ -558,7 +572,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     }
                     else
                     {
-                        if (_expandHourlyPrecip)
+                        if (expandHourlyPrecip)
                         {
                             //var expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
                             //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(precipAmounts[i].Time, precipAmount);

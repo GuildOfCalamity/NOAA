@@ -20,7 +20,7 @@
     mc:Ignorable="d">
     <Grid x:Name="container" Background="{StaticResource MainBackground}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="40" />
+            <RowDefinition Height="42" />
             <RowDefinition />
             <RowDefinition Height="60" />
         </Grid.RowDefinitions>
@@ -36,7 +36,7 @@
                 <Button
                     x:Name="btnGet"
                     Grid.Column="0"
-                    Height="30"
+                    Height="32"
                     Margin="2,1,0,0"
                     Background="#303030"
                     Click="GetWeatherClick"
@@ -47,7 +47,7 @@
                 <Button
                     x:Name="btnSnowfall"
                     Grid.Column="1"
-                    Height="30"
+                    Height="32"
                     Margin="2,1,0,0"
                     Background="#303030"
                     Click="GetSnowfallClick"
@@ -60,18 +60,25 @@
                         <RowDefinition Height="1*" />
                         <RowDefinition Height="1*" />
                     </Grid.RowDefinitions>
-                    <TextBlock
-                        Grid.Row="0"
-                        Margin="10,0,0,0"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        Foreground="{StaticResource SecondaryBrush}"
-                        Text="{Binding Status, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Grid.Column="0"
+                            Margin="10,0,0,0"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="{StaticResource SecondaryBrush}"
+                            Text="{Binding Status, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <CheckBox IsChecked="{Binding ExpandHourlyPrecip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  Margin="5,4,6,0" HorizontalAlignment="Right" Foreground="White" Grid.Column="1" Content="Expand hourly precipitation"/>
+                    </Grid>
                     <TextBlock
                         Grid.Row="1"
                         Margin="10,0,0,0"
-                        HorizontalAlignment="Left"
+                        HorizontalAlignment="Stretch"
                         VerticalAlignment="Center"
                         FontSize="14"
                         Foreground="{StaticResource SecondaryBrush}"
