@@ -35,6 +35,7 @@ public class WeatherService : IDisposable
         //_http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("WpfWeatherApp", "1.0"));
     }
 
+    #region [API methods]
     public async Task<WeatherForecastResponse?> GetWeeklyForecastAsync(string url, bool logResponse = false)
     {
         try
@@ -554,8 +555,9 @@ public class WeatherService : IDisposable
         }
         return values;
     }
+    #endregion
 
-    #region [Helpers]
+    #region [Time and value helpers]
     /// <summary>
     /// Returns the unit of measure from the wmoUnit string. <br/>
     /// <code>
@@ -600,7 +602,6 @@ public class WeatherService : IDisposable
         return start + TimeSpan.FromTicks(duration.Ticks / 2);
     }
 
-
     /// <summary>
     /// NOAA’s quirkiest formats: a start time followed by an ISO‑8601 duration.
     /// <code>
@@ -626,145 +627,6 @@ public class WeatherService : IDisposable
         // End time
         var end = start + duration;
         return (start, duration, end);
-    }
-
-    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourly(string validTime, double totalAmount)
-    {
-        var (start, duration, end) = ParseNoaaValidTime(validTime);
-
-        // NOAA durations are often PT1H, PT6H, PT12H, etc.
-        int hours = (int)duration.TotalHours;
-
-        if (hours <= 0)
-            return new List<(DateTime, double)>();
-
-        // Amount per hour (cumulative)
-        double increment = totalAmount / hours;
-
-        var result = new List<(DateTime Time, double Value)>(hours);
-
-        //if (totalAmount == 0) { return result; }
-
-        for (int i = 1; i <= hours; i++)
-        {
-            var t = start.AddHours(i);
-            var v = increment * i; // cumulative
-            //var v = increment; // non-cumulative
-            result.Add((t, v));
-        }
-
-        return result;
-    }
-
-    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourlyFlat(string validTime, double totalAmount)
-    {
-        var (start, duration, end) = ParseNoaaValidTime(validTime);
-        int hours = (int)duration.TotalHours;
-
-        if (hours <= 0)
-            return new();
-
-        var result = new List<(DateTime Time, double Value)>(hours);
-
-        for (int i = 1; i <= hours; i++)
-        {
-            result.Add((start.AddHours(i), totalAmount));
-        }
-
-        return result;
-    }
-
-    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourlyRate(string validTime, double totalAmount)
-    {
-        var (start, duration, end) = ParseNoaaValidTime(validTime);
-        int hours = (int)duration.TotalHours;
-
-        if (hours <= 0)
-            return new();
-
-        double hourly = totalAmount / hours;
-
-        var result = new List<(DateTime, double)>(hours);
-
-        for (int i = 1; i <= hours; i++)
-        {
-            result.Add((start.AddHours(i), hourly));
-        }
-
-        return result;
-    }
-
-    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourlyRateSmoothed(string validTime, double totalAmount)
-    {
-        var (start, duration, end) = ParseNoaaValidTime(validTime);
-        int hours = (int)duration.TotalHours;
-
-        if (hours <= 0)
-            return new();
-
-        // Expand into hourly rate values
-        double hourly = totalAmount / hours;
-
-        var raw = new List<(DateTime Time, double Value)>(hours);
-        for (int i = 1; i <= hours; i++)
-        {
-            raw.Add((start.AddHours(i), hourly));
-        }
-
-        // Weighted smoothing
-        var smooth = new List<(DateTime Time, double Value)>(hours);
-
-        for (int i = 0; i < raw.Count; i++)
-        {
-            double v = 0;
-            if (i == 0) // First point: weight itself + next
-                v = (2 * raw[i].Value + raw[i + 1].Value) / 3.0;
-            else if (i == raw.Count - 1) // Last point: weight itself + previous
-                v = (raw[i - 1].Value + 2 * raw[i].Value) / 3.0;
-            else // Middle points: full weighted smoother
-                v = (raw[i - 1].Value + 2 * raw[i].Value + raw[i + 1].Value) / 4.0;
-            smooth.Add((raw[i].Time, v));
-        }
-
-        return smooth;
-    }
-
-    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourlyCatmullRom(string validTime, double totalAmount, int samplesPerHour = 6)
-    {
-        // First expand into flat hourly values
-        var hourly = ExpandNoaaPrecipHourlyFlat(validTime, totalAmount);
-
-        if (hourly.Count < 2)
-            return hourly;
-
-        // Convert to numeric X for spline (hours since start)
-        var start = hourly[0].Time;
-        var pts = hourly
-            .Select(h => ((h.Time - start).TotalHours, h.Value))
-            .ToList();
-
-        var result = new List<(DateTime Time, double Value)>();
-
-        for (int i = 0; i < pts.Count - 1; i++)
-        {
-            var p0 = i == 0 ? pts[i] : pts[i - 1];
-            var p1 = pts[i];
-            var p2 = pts[i + 1];
-            var p3 = i + 2 < pts.Count ? pts[i + 2] : pts[i + 1];
-
-            for (int s = 0; s < samplesPerHour; s++)
-            {
-                double t = s / (double)samplesPerHour;
-                var (x, y) = CatmullRom(p0, p1, p2, p3, t);
-
-                result.Add((start.AddHours(x), y));
-            }
-        }
-
-        // Add the final point
-        result.Add(hourly.Last());
-
-        return result;
     }
 
     /// <summary>
@@ -958,21 +820,162 @@ public class WeatherService : IDisposable
         // Normal range
         return $"{min:0.0} – {max:0.0} inches";
     }
+    #endregion
 
-    private static (double X, double Y) CatmullRom((double X, double Y) p0, (double X, double Y) p1, (double X, double Y) p2, (double X, double Y) p3, double t)
+    #region [Charting helpers]
+    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourly(string validTime, double totalAmount)
+    {
+        var (start, duration, end) = ParseNoaaValidTime(validTime);
+
+        // NOAA durations are often PT1H, PT6H, PT12H, etc.
+        int hours = (int)duration.TotalHours;
+
+        if (hours <= 0)
+            return new List<(DateTime, double)>();
+
+        // Amount per hour (cumulative)
+        double increment = totalAmount / hours;
+
+        var result = new List<(DateTime Time, double Value)>(hours);
+
+        //if (totalAmount == 0) { return result; }
+
+        for (int i = 1; i <= hours; i++)
+        {
+            var t = start.AddHours(i);
+            var v = increment * i; // cumulative
+            //var v = increment; // non-cumulative
+            result.Add((t, v));
+        }
+
+        return result;
+    }
+
+    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourlyFlat(string validTime, double totalAmount)
+    {
+        var (start, duration, end) = ParseNoaaValidTime(validTime);
+        int hours = (int)duration.TotalHours;
+
+        if (hours <= 0)
+            return new();
+
+        var result = new List<(DateTime Time, double Value)>(hours);
+        for (int i = 1; i <= hours; i++)
+        {
+            result.Add((start.AddHours(i), totalAmount));
+        }
+
+        return result;
+    }
+
+    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourlyRate(string validTime, double totalAmount)
+    {
+        var (start, duration, end) = ParseNoaaValidTime(validTime);
+        int hours = (int)duration.TotalHours;
+
+        if (hours <= 0)
+            return new();
+
+        double hourly = totalAmount / hours;
+
+        var result = new List<(DateTime, double)>(hours);
+
+        for (int i = 1; i <= hours; i++)
+        {
+            result.Add((start.AddHours(i), hourly));
+        }
+
+        return result;
+    }
+
+    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourlyRateSmoothed(string validTime, double totalAmount)
+    {
+        var (start, duration, end) = ParseNoaaValidTime(validTime);
+        int hours = (int)duration.TotalHours;
+
+        if (hours <= 0)
+            return new();
+
+        // Expand into hourly rate values
+        double hourly = totalAmount / hours;
+
+        var raw = new List<(DateTime Time, double Value)>(hours);
+        for (int i = 1; i <= hours; i++)
+        {
+            raw.Add((start.AddHours(i), hourly));
+        }
+
+        // Weighted smoothing
+        var smooth = new List<(DateTime Time, double Value)>(hours);
+
+        for (int i = 0; i < raw.Count; i++)
+        {
+            double v = 0;
+            if (i == 0) // First point: weight itself + next
+                v = (2 * raw[i].Value + raw[i + 1].Value) / 3.0;
+            else if (i == raw.Count - 1) // Last point: weight itself + previous
+                v = (raw[i - 1].Value + 2 * raw[i].Value) / 3.0;
+            else // Middle points: full weighted smoother
+                v = (raw[i - 1].Value + 2 * raw[i].Value + raw[i + 1].Value) / 4.0;
+            smooth.Add((raw[i].Time, v));
+        }
+
+        return smooth;
+    }
+
+    public List<(DateTime Time, double Value)> ExpandNoaaPrecipHourlyCatmullRom(string validTime, double totalAmount, int samplesPerHour = 6)
+    {
+        // First expand into flat hourly values
+        var hourly = ExpandNoaaPrecipHourlyFlat(validTime, totalAmount);
+
+        if (hourly.Count < 2)
+            return hourly;
+
+        // Convert to numeric X for spline (hours since start)
+        var start = hourly[0].Time;
+        var pts = hourly.Select(h => ((h.Time - start).TotalHours, h.Value)).ToList();
+        var result = new List<(DateTime Time, double Value)>();
+        for (int i = 0; i < pts.Count - 1; i++)
+        {
+            try
+            {
+                var p0 = i == 0 ? pts[i] : pts[i - 1];
+                var p1 = pts[i];
+                var p2 = pts[i + 1];
+                var p3 = i + 2 < pts.Count ? pts[i + 2] : pts[i + 1];
+                for (int s = 0; s < samplesPerHour; s++)
+                {
+                    double t = (double)s / (double)samplesPerHour;
+                    var (x, y) = CatmullRom(p0, p1, p2, p3, t);
+                    result.Add((start.AddHours(x), y));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ERROR] {System.Reflection.MethodBase.GetCurrentMethod()?.Name}: {ex.Message}");
+            }
+        }
+
+        // Add the final point
+        result.Add(hourly.Last());
+
+        return result;
+    }
+
+    /// <summary>
+    /// Commonly used for paths and interpolation, Catmull-Rom splines are a family of cubic interpolating 
+    /// splines used in computer graphics and animation to create smooth paths that pass directly through 
+    /// all control points. They are \(C^{1}\) continuous, meaning they have continuous first derivatives 
+    /// (smooth tangent transitions). They are  Catmull-Rom splines are specifically valuable because they 
+    /// avoid the excessive bending or "looping" issues sometimes found with other interpolation methods.
+    /// </summary>
+    /// <returns><see cref="Tuple{T1, T2}"/></returns>
+    static (double X, double Y) CatmullRom((double X, double Y) p0, (double X, double Y) p1, (double X, double Y) p2, (double X, double Y) p3, double t)
     {
         double t2 = t * t;
         double t3 = t2 * t;
-        double x =
-            0.5 * ((2 * p1.X) +
-            (-p0.X + p2.X) * t +
-            (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2 +
-            (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3);
-        double y =
-            0.5 * ((2 * p1.Y) +
-            (-p0.Y + p2.Y) * t +
-            (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2 +
-            (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3);
+        double x = 0.5 * ((2 * p1.X) + (-p0.X + p2.X) * t + (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2 + (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3);
+        double y = 0.5 * ((2 * p1.Y) + (-p0.Y + p2.Y) * t + (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2 + (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3);
         return (x, y);
     }
     #endregion

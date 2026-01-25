@@ -25,7 +25,11 @@
 
 ![ExpandHourly](./Assets/Screenshot3.png)
 
+> `CumulativePointGrowth = True`
+
+![CumulativeGrowth](./Assets/Screenshot4.png)
+
 > `Settings.xml`
 
-![Settings](./Assets/Screenshot4.png)
+![Settings](./Assets/Screenshot5.png)
 

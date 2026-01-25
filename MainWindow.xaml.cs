@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 
 using NOAA_Model1;
@@ -97,6 +98,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    bool cumulativePointGrowth = false;
+    public bool CumulativePointGrowth
+    {
+        get => cumulativePointGrowth;
+        set
+        {
+            if (cumulativePointGrowth != value)
+            {
+                cumulativePointGrowth = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     List<ChartSeries> precipSeries = new List<ChartSeries>();
     public List<ChartSeries> PrecipSeries
     {
@@ -133,6 +148,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
             #region [Load config]
             ExpandHourlyPrecip = ConfigManager.Get("ExpandHourlyPrecipitation", defaultValue: false);
+            CumulativePointGrowth = ConfigManager.Get("CumulativePointGrowth", defaultValue: false);
             _latitude = ConfigManager.Get("Latitude", defaultValue: 40.539d);
             _longitude = ConfigManager.Get("Longitude", defaultValue: -75.496d);
             _windowTop = ConfigManager.Get("WindowTop", defaultValue: 200d);
@@ -202,6 +218,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ConfigManager.Set("WindBrushColor", _windBrushColor);
         ConfigManager.Set("WindBrushOpacity", _windBrushOpacity);
         ConfigManager.Set("ExpandHourlyPrecipitation", expandHourlyPrecip);
+        ConfigManager.Set("CumulativePointGrowth", cumulativePointGrowth);
         _weatherService?.Dispose();
         _cts?.Cancel(); // Signal any loops/timers that it's time to shut it down.
     }
@@ -568,9 +585,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     {
                         if (expandHourlyPrecip)
                         {
-                            //var expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
+                            List<(DateTime Time, double Value)> expanded = new List<(DateTime Time, double Value)>();
                             //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(snowAmounts[i].Time, snowAmount);
-                            var expanded = _weatherService.ExpandNoaaPrecipHourlyFlat(snowAmounts[i].Time, snowAmount);
+                            if (CumulativePointGrowth)
+                                expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
+                            else
+                                expanded = _weatherService.ExpandNoaaPrecipHourlyFlat(snowAmounts[i].Time, snowAmount);
                             foreach (var item in expanded)
                             {
                                 points.Add(new ChartPoint(item.Time, item.Value, snowAmounts[i].UnitOfMeasure));
@@ -589,9 +609,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
                         if (expandHourlyPrecip)
                         {
-                            //var expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
-                            //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(precipAmounts[i].Time, precipAmount);
-                            var expanded = _weatherService.ExpandNoaaPrecipHourlyFlat(precipAmounts[i].Time, precipAmount);
+                            List<(DateTime Time, double Value)> expanded = new List<(DateTime Time, double Value)>();
+                            //expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(precipAmounts[i].Time, precipAmount);
+                            if (CumulativePointGrowth)
+                                expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
+                            else
+                                expanded = _weatherService.ExpandNoaaPrecipHourlyFlat(precipAmounts[i].Time, precipAmount);
                             foreach (var item in expanded)
                             {
                                 points.Add(new ChartPoint(item.Time, item.Value, precipAmounts[i].UnitOfMeasure));
