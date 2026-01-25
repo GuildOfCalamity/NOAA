@@ -47,7 +47,7 @@
         <Color x:Key="ControlDarkColor">#FF211AA9</Color>
         <Color x:Key="ControlMouseOverColor">#FF242426</Color>
         <Color x:Key="ControlPressedColor">#FF444445</Color>
-        <Color x:Key="GlyphColor">#FF202020</Color>
+        <Color x:Key="GlyphColor">#FF151515</Color>
         <Color x:Key="GlyphMouseOver">sc#1, 0.004391443, 0.002428215, 0.242281124</Color>
         <Color x:Key="BorderLightColor">#FFCCCCCC</Color>
         <Color x:Key="BorderMediumColor">#FF888888</Color>
@@ -374,10 +374,10 @@
                                                 x:Name="CheckMark"
                                                 Width="14"
                                                 Height="14"
-                                                Margin="4,2,0,0"
+                                                Margin="3,2,0,0"
                                                 Data="M8.625,0.5 C1.6875,10.5 2.6875,12.040001 1.5625,9.3525009 C0.4375,5.6650009 1.175,7.8525 0.5,8.6275"
                                                 SnapsToDevicePixels="False"
-                                                StrokeThickness="3"
+                                                StrokeThickness="2"
                                                 Visibility="Collapsed">
                                             <Path.Stroke>
                                                 <SolidColorBrush Color="{DynamicResource GlyphColor}" />

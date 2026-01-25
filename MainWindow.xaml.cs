@@ -545,6 +545,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             string target = "";
             if (snowAmounts.Count == precipAmounts.Count)
             {
+                try
+                {
+                    double maxSnow = snowAmounts.Count > 0 ? Extensions.GetMaximumDouble(snowAmounts.Max(s => s.Value)) : 0d;
+                    double maxRain = precipAmounts.Count > 0 ? Extensions.GetMaximumDouble(precipAmounts.Max(s => s.Value)) : 0d;
+                    if (maxSnow > maxRain)
+                        target = "Snowfall";
+                    else
+                        target = "Rainfall";
+                }
+                catch 
+                { 
+                    target = "Precipitation"; 
+                }
+
                 for (int i = 0; i < snowAmounts.Count; i++)
                 {
                     var snowAmount = Extensions.GetMaximumDouble(snowAmounts[i].Value);
@@ -552,7 +566,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     // Take the larger of the two and hydrate the chart points
                     if (snowAmount > precipAmount)
                     {
-                        target = "Snowfall";
                         if (expandHourlyPrecip)
                         {
                             //var expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
@@ -573,7 +586,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     }
                     else
                     {
-                        target = "Rainfall";
+
                         if (expandHourlyPrecip)
                         {
                             //var expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
