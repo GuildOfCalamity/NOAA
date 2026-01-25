@@ -57,7 +57,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     string status = "";
-    public string Status
+    public string Status // Status Line 1
     {
         get => status;
         set
@@ -71,7 +71,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     string status2 = "";
-    public string Status2
+    public string Status2 // Status Line 2
     {
         get => status2;
         set
@@ -84,29 +84,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    bool expandHourlyPrecip = false;
-    public bool ExpandHourlyPrecip
+    int expandPrecipPointMode = 1;
+    public int ExpandPrecipPointMode
     {
-        get => expandHourlyPrecip;
+        get => expandPrecipPointMode;
         set
         {
-            if (expandHourlyPrecip != value)
+            if (expandPrecipPointMode != value)
             {
-                expandHourlyPrecip = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    bool cumulativePointGrowth = false;
-    public bool CumulativePointGrowth
-    {
-        get => cumulativePointGrowth;
-        set
-        {
-            if (cumulativePointGrowth != value)
-            {
-                cumulativePointGrowth = value;
+                expandPrecipPointMode = value;
                 OnPropertyChanged();
             }
         }
@@ -127,7 +113,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public MainWindow()
     {
-        // additional weather emojis ⇒ ☀ ⛅ ☁ ⛈ ☂ ☔ ☃ ⛄ ⛇ ⛆ ⛱ ☄ ♨
+        // Additional weather emojis ⇒ ☀ ⛅ ☁ ⛈ ☂ ☔ ☃ ⛄ ⛇ ⛆ ⛱ ☄ ♨
         InitializeComponent();
         this.DataContext = this; // ⇦ must set context for INotifyPropertyChanged
         Debug.WriteLine($"[INFO] Application version {App.GetCurrentAssemblyVersion()}");
@@ -147,8 +133,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             btnGet.Content = Constants.MainButtonText;
 
             #region [Load config]
-            ExpandHourlyPrecip = ConfigManager.Get("ExpandHourlyPrecipitation", defaultValue: false);
-            CumulativePointGrowth = ConfigManager.Get("CumulativePointGrowth", defaultValue: false);
+            ExpandPrecipPointMode = ConfigManager.Get("ExpandPrecipPointMode", defaultValue: 1);
             _latitude = ConfigManager.Get("Latitude", defaultValue: 40.539d);
             _longitude = ConfigManager.Get("Longitude", defaultValue: -75.496d);
             _windowTop = ConfigManager.Get("WindowTop", defaultValue: 200d);
@@ -164,6 +149,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
             // Check if position is on any screen
             this.RestorePosition(_windowLeft, _windowTop, _windowWidth, _windowHeight);
+
+            try
+            {
+                foreach (ComboBoxItem item in cmbExpansion.Items)
+                {
+                    if ($"{item.Content}".StartsWith(ExpandPrecipPointMode switch
+                    {
+                        1 => "Normal",
+                        2 => "Flat",
+                        3 => "Cumulative",
+                        _ => "Normal",
+                    }, StringComparison.OrdinalIgnoreCase))
+                    {
+                        cmbExpansion.SelectedItem = item;
+                        break;
+                    }
+                }
+            }
+            catch { Debug.WriteLine($"[WARNING] Failed to set ComboBox item from config ExpandPrecipPointMode={ExpandPrecipPointMode}"); }
 
             Status = $"🔔 Testing internet access";
             if (!await Extensions.PingHostAsync("8.8.8.8"))
@@ -217,10 +221,39 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else { ConfigManager.Set("WindowHeight", value: 800); } // restore default
         ConfigManager.Set("WindBrushColor", _windBrushColor);
         ConfigManager.Set("WindBrushOpacity", _windBrushOpacity);
-        ConfigManager.Set("ExpandHourlyPrecipitation", expandHourlyPrecip);
-        ConfigManager.Set("CumulativePointGrowth", cumulativePointGrowth);
+        ConfigManager.Set("ExpandPrecipPointMode", ExpandPrecipPointMode);
         _weatherService?.Dispose();
         _cts?.Cancel(); // Signal any loops/timers that it's time to shut it down.
+    }
+
+    /// <summary>
+    /// <see cref="System.Windows.Controls.ComboBox"/> event
+    /// </summary>
+    void cmbExpansion_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var items = e.AddedItems;
+        if (items != null && items.Count > 0)
+        {
+            var selected = items[0] as ComboBoxItem;
+            if (selected != null)
+            {
+                switch ($"{selected.Content}")
+                {
+                    case string sel when sel.StartsWith("Normal", StringComparison.OrdinalIgnoreCase):
+                        ExpandPrecipPointMode = 1;
+                        break;
+                    case string sel when sel.StartsWith("Flat", StringComparison.OrdinalIgnoreCase):
+                        ExpandPrecipPointMode = 2;
+                        break;
+                    case string sel when sel.StartsWith("Cumulative", StringComparison.OrdinalIgnoreCase):
+                        ExpandPrecipPointMode = 3;
+                        break;
+                    default:
+                        ExpandPrecipPointMode = 1;
+                        break;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -583,49 +616,60 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     // Take the larger of the two and hydrate the chart points
                     if (snowAmount > precipAmount)
                     {
-                        if (expandHourlyPrecip)
+                        List<(DateTime Time, double Value)> expanded = new List<(DateTime Time, double Value)>();
+                        switch (ExpandPrecipPointMode)
                         {
-                            List<(DateTime Time, double Value)> expanded = new List<(DateTime Time, double Value)>();
-                            //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(snowAmounts[i].Time, snowAmount);
-                            if (CumulativePointGrowth)
-                                expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
-                            else
+                            case 1: // Normal
+                                var startTime = _weatherService.ParseNoaaStartTime(snowAmounts[i].Time);
+                                var midPoint = _weatherService.ParseNoaaValidTimeMidpoint(snowAmounts[i].Time);
+                                var rangeTime = _weatherService.ParseNoaaValidTime(snowAmounts[i].Time);
+                                points.Add(new ChartPoint(midPoint, snowAmount, snowAmounts[i].UnitOfMeasure));
+                                break;
+                            case 2: // Flat
+                                //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(snowAmounts[i].Time, snowAmount);
                                 expanded = _weatherService.ExpandNoaaPrecipHourlyFlat(snowAmounts[i].Time, snowAmount);
-                            foreach (var item in expanded)
-                            {
-                                points.Add(new ChartPoint(item.Time, item.Value, snowAmounts[i].UnitOfMeasure));
-                            }
-                        }
-                        else
-                        {
-                            var startTime = _weatherService.ParseNoaaStartTime(snowAmounts[i].Time);
-                            var midPoint = _weatherService.ParseNoaaValidTimeMidpoint(snowAmounts[i].Time);
-                            var rangeTime = _weatherService.ParseNoaaValidTime(snowAmounts[i].Time);
-                            points.Add(new ChartPoint(midPoint, snowAmount, snowAmounts[i].UnitOfMeasure));
+                                foreach (var item in expanded)
+                                {
+                                    points.Add(new ChartPoint(item.Time, item.Value, snowAmounts[i].UnitOfMeasure));
+                                }
+                                break;
+                            case 3: // Cumulative
+                                //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(snowAmounts[i].Time, snowAmount);
+                                expanded = _weatherService.ExpandNoaaPrecipHourly(snowAmounts[i].Time, snowAmount);
+                                foreach (var item in expanded)
+                                {
+                                    points.Add(new ChartPoint(item.Time, item.Value, snowAmounts[i].UnitOfMeasure));
+                                }
+                                break;
                         }
                     }
                     else
                     {
-
-                        if (expandHourlyPrecip)
+                        List<(DateTime Time, double Value)> expanded = new List<(DateTime Time, double Value)>();
+                        switch (ExpandPrecipPointMode)
                         {
-                            List<(DateTime Time, double Value)> expanded = new List<(DateTime Time, double Value)>();
-                            //expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(precipAmounts[i].Time, precipAmount);
-                            if (CumulativePointGrowth)
-                                expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
-                            else
+                            case 1: // Normal
+                                var startTime = _weatherService.ParseNoaaStartTime(precipAmounts[i].Time);
+                                var midPoint = _weatherService.ParseNoaaValidTimeMidpoint(precipAmounts[i].Time);
+                                var rangeTime = _weatherService.ParseNoaaValidTime(precipAmounts[i].Time);
+                                points.Add(new ChartPoint(midPoint, precipAmount, precipAmounts[i].UnitOfMeasure));
+                                break;
+                            case 2: // Flat
+                                //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(precipAmounts[i].Time, precipAmount);
                                 expanded = _weatherService.ExpandNoaaPrecipHourlyFlat(precipAmounts[i].Time, precipAmount);
-                            foreach (var item in expanded)
-                            {
-                                points.Add(new ChartPoint(item.Time, item.Value, precipAmounts[i].UnitOfMeasure));
-                            }
-                        }
-                        else
-                        {
-                            var startTime = _weatherService.ParseNoaaStartTime(precipAmounts[i].Time);
-                            var midPoint = _weatherService.ParseNoaaValidTimeMidpoint(precipAmounts[i].Time);
-                            var rangeTime = _weatherService.ParseNoaaValidTime(precipAmounts[i].Time);
-                            points.Add(new ChartPoint(midPoint, precipAmount, precipAmounts[i].UnitOfMeasure));
+                                foreach (var item in expanded)
+                                {
+                                    points.Add(new ChartPoint(item.Time, item.Value, snowAmounts[i].UnitOfMeasure));
+                                }
+                                break;
+                            case 3: // Cumulative
+                                //var expanded = _weatherService.ExpandNoaaPrecipHourlyCatmullRom(precipAmounts[i].Time, precipAmount);
+                                expanded = _weatherService.ExpandNoaaPrecipHourly(precipAmounts[i].Time, precipAmount);
+                                foreach (var item in expanded)
+                                {
+                                    points.Add(new ChartPoint(item.Time, item.Value, snowAmounts[i].UnitOfMeasure));
+                                }
+                                break;
                         }
                     }
                 }

@@ -17,15 +17,15 @@
 
 ![Screenshot](./Assets/Screenshot.png)
 
-> `ExpandHourlyPrecipitation = False`
+> `ExpandPrecipPointMode = Normal`
 
 ![CartesianChart](./Assets/Screenshot2.png)
 
-> `ExpandHourlyPrecipitation = True`
+> `ExpandPrecipPointMode = Flat`
 
 ![ExpandHourly](./Assets/Screenshot3.png)
 
-> `CumulativePointGrowth = True`
+> `ExpandPrecipPointMode = Cumulative`
 
 ![CumulativeGrowth](./Assets/Screenshot4.png)
 

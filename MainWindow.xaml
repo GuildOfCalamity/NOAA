@@ -20,7 +20,7 @@
     mc:Ignorable="d">
     <Grid x:Name="container" Background="{StaticResource MainBackground}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="42" />
+            <RowDefinition Height="48" />
             <RowDefinition />
             <RowDefinition Height="60" />
         </Grid.RowDefinitions>
@@ -73,7 +73,29 @@
                             FontSize="14"
                             Foreground="{StaticResource SecondaryBrush}"
                             Text="{Binding Status, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
-                        <CheckBox IsChecked="{Binding ExpandHourlyPrecip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  Margin="5,4,6,0" HorizontalAlignment="Right" Foreground="White" Grid.Column="1" Content="Expand hourly precipitation"/>
+                        <!--<CheckBox IsChecked="{Binding ExpandHourlyPrecip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
+                                  Margin="5,4,6,0" 
+                                  HorizontalAlignment="Right" 
+                                  Foreground="White" 
+                                  Grid.Column="1" 
+                                  Content="Expand hourly precipitation"/>-->
+                        <ComboBox
+                            x:Name="cmbExpansion"
+                            Grid.Column="1"
+                            Width="140"
+                            Height="25"
+                            Padding="0"
+                            Margin="2,4,8,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="{StaticResource PrimaryBrush}"
+                            Background="#303030"
+                            SelectionChanged="cmbExpansion_SelectionChanged">
+                            <ComboBoxItem Content="Normal Plot" IsSelected="True" />
+                            <ComboBoxItem Content="Flat Plot" />
+                            <ComboBoxItem Content="Cumulative Plot" />
+                        </ComboBox>
                     </Grid>
                     <TextBlock
                         Grid.Row="1"
