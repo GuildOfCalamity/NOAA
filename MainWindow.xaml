@@ -9,6 +9,7 @@
     Title="NOAA"
     Width="1000"
     Height="800"
+    local:DarkTitleBar.ApplyDarkMode="True"
     Activated="Window_Activated"
     Background="#242424"
     Closing="Window_Closing"
@@ -73,24 +74,24 @@
                             FontSize="14"
                             Foreground="{StaticResource SecondaryBrush}"
                             Text="{Binding Status, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
-                        <!--<CheckBox IsChecked="{Binding ExpandHourlyPrecip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
-                                  Margin="5,4,6,0" 
-                                  HorizontalAlignment="Right" 
-                                  Foreground="White" 
-                                  Grid.Column="1" 
+                        <!--<CheckBox IsChecked="{Binding ExpandHourlyPrecip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  Margin="5,4,6,0"
+                                  HorizontalAlignment="Right"
+                                  Foreground="White"
+                                  Grid.Column="1"
                                   Content="Expand hourly precipitation"/>-->
                         <ComboBox
                             x:Name="cmbExpansion"
                             Grid.Column="1"
                             Width="140"
                             Height="25"
-                            Padding="0"
                             Margin="2,4,8,0"
+                            Padding="0"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
+                            Background="#303030"
                             FontSize="14"
                             Foreground="{StaticResource PrimaryBrush}"
-                            Background="#303030"
                             SelectionChanged="cmbExpansion_SelectionChanged">
                             <ComboBoxItem Content="Normal Plot" IsSelected="True" />
                             <ComboBoxItem Content="Flat Plot" />
